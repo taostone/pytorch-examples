@@ -1,4 +1,5 @@
 import argparse
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,7 +7,7 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 
-
+import matplotlib.pyplot as plt
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -68,6 +69,51 @@ def test(model, device, test_loader):
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
+def show_images(images, labels, rows=4, cols=4):
+    """
+    显示一批图像
+    :param images: 包含多个图像的列表或数据集切片
+    :param labels: 对应的标签列表
+    :param rows: 每页行数
+    :param cols: 每页列数
+    """
+    fig, axes = plt.subplots(rows, cols, figsize=(cols*2, rows*2))
+    for idx in range(rows * cols):
+        if idx < len(images):
+            ax = axes[idx // cols, idx % cols] if rows > 1 else axes[idx % cols]
+            ax.imshow(images[idx].squeeze(), cmap='gray')
+            ax.set_title(f'Label: {labels[idx]}')
+            ax.axis('off')
+        else:
+            # 如果当前页面没有足够的图片，则关闭多余的子图
+            fig.delaxes(axes.flatten()[idx])
+    
+    plt.tight_layout()
+    plt.show()
+
+def view_MNIST_image():
+    transform = transforms.ToTensor()  # Converts PIL image or NumPy array to PyTorch tensor
+    # Load the MNIST training dataset
+    mnist_dataset = datasets.MNIST(
+        root='./data',          # Directory to store/download data
+        train=True,             # Load training set
+        download=True,          # Download if not present
+        transform=transform     # Apply transform
+    )
+
+    batch_size = 16  # 每次显示的图像数量
+    total_images = len(mnist_dataset)
+    for start_idx in range(0, total_images, batch_size):
+        end_idx = min(start_idx + batch_size, total_images)
+        images = [mnist_dataset[i][0] for i in range(start_idx, end_idx)]
+        labels = [mnist_dataset[i][1] for i in range(start_idx, end_idx)]
+        
+        show_images(images, labels)
+        
+        # 如果不是最后一页，则等待用户按下回车键以继续
+        if end_idx < total_images:
+            input("按回车键继续到下一页...")
+
 
 def main():
     # Training settings
@@ -113,13 +159,15 @@ def main():
         train_kwargs.update(accel_kwargs)
         test_kwargs.update(accel_kwargs)
 
+    # view_MNIST_image()
+
     transform=transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
-        ])
-    dataset1 = datasets.MNIST('../data', train=True, download=True,
+        ])    
+    dataset1 = datasets.MNIST('../data', train=True, download=False,
                        transform=transform)
-    dataset2 = datasets.MNIST('../data', train=False,
+    dataset2 = datasets.MNIST('../data', train=False,download=False,
                        transform=transform)
     train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
@@ -135,7 +183,6 @@ def main():
 
     if args.save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")
-
 
 if __name__ == '__main__':
     main()
